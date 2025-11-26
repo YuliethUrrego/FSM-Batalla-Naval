@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servidor de Defensa - FSM Naval Battle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        /* Variables para tamaño de celdas y espaciado */
+        :root {
+            --cell-size: 64px; /* tamaño por defecto de cada celda */
+            --tab-gap: 10px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #f5576c;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .info-section {
+            background: #f7f7f7;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 13px;
+        }
+        
+        .tablero {
+            display: grid;
+            /* primera columna para cabeceras de fila (letras), luego 5 celdas de tamaño fijo */
+            grid-template-columns: 30px repeat(5, var(--cell-size));
+            gap: var(--tab-gap);
+            margin: 20px 0;
+            justify-content: center; /* centra el tablero dentro de su contenedor */
+        }
+        
+        .celda-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #f5576c;
+            height: var(--cell-size);
+        }
+        
+        .celda {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            border: 2px solid #f5576c;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: calc(var(--cell-size) * 0.28);
+            background: white;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+        
+        .celda.destroyer {
+            background: #10b981;
+            color: white;
+        }
+        
+        .celda.submarine {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .celda.battleship {
+            background: #8b5cf6;
+            color: white;
+        }
+        
+        .celda.agua-atacada {
+            background: #60a5fa;
+            color: white;
+        }
+        
+        .celda.impacto {
+            background: #ef4444;
+            color: white;
+            animation: explosion 0.5s ease-out;
+        }
+        
+        @keyframes explosion {
+            0% { 
+                transform: scale(1); 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% { 
+                transform: scale(1.3); 
+                box-shadow: 0 0 20px 10px rgba(239, 68, 68, 0.5);
+            }
+            100% { 
+                transform: scale(1); 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+        
+        .celda.ultimo-ataque {
+            animation: pulso 1s ease-in-out 3;
+        }
+        
+        @keyframes pulso {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(245, 87, 108, 0.7); 
+            }
+            50% { 
+                box-shadow: 0 0 0 15px rgba(245, 87, 108, 0); 
+            }
+        }
+        
+        .barcos-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .barco-card {
+            background: #f7f7f7;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            border: 3px solid transparent;
+        }
+        
+        .barco-card.destroyer {
+            border-color: #10b981;
+        }
+        
+        .barco-card.submarine {
+            border-color: #3b82f6;
+        }
+        
+        .barco-card.battleship {
+            border-color: #8b5cf6;
+        }
+        
+        .barco-card.hundido {
+            opacity: 0.5;
+            background: #fee2e2;
+        }
+        
+        .barco-nombre {
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        
+        .barco-estado {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: #f7f7f7;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #f5576c;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .mensaje {
+            padding: 12px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: 600;
+            text-align: center;
+            animation: slideIn 0.3s ease-out;
+            font-size: 13px;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .mensaje.alerta {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .mensaje.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .mensaje.exito {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .mensaje.fin-juego {
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 16px;
+            padding: 20px;
+        }
+        
+        button {
+            background: #f5576c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        
+        button:hover {
+            background: #dc4158;
+            transform: translateY(-2px);
+        }
+        
+        .leyenda {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            font-size: 11px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .leyenda-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .leyenda-cuadro {
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+            border: 2px solid #ddd;
+        }
+        
+        .conexion-status {
+            text-align: center;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .conexion-status.conectado {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .conexion-status.desconectado {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Layout responsivo: texto a la izquierda, matriz a la derecha en pantallas grandes */
+        .layout {
+            display: block; /* por defecto apilado (móvil) */
+        }
+
+        .layout .left,
+        .layout .right {
+            width: 100%;
+        }
+
+        .layout .left {
+            text-align: left;
+            padding-right: 0;
+        }
+
+        .layout .right {
+            display: block;
+            margin-top: 16px;
+        }
+
+        /* A partir de 700px en adelante mostramos las dos columnas lado a lado */
+        @media (min-width: 700px) {
+            /* Aumentar tamaño de celdas en pantallas grandes */
+            :root {
+                --cell-size: 96px;
+                --tab-gap: 14px;
+            }
+            .layout {
+                display: flex;
+                gap: 24px;
+                align-items: center;
+            }
+
+            .layout .left{
+                width: 40%;
+            }
+            .layout .right {
+                width: 60%;
+            }
+
+            .layout .right {
+                display: flex;
+                flex-direction: column;
+                align-items: center; /* centra la matriz en la columna derecha */
+            }
+
+            /* En pantallas grandes dejamos que el tablero crezca y se centre en la columna derecha */
+            .tablero {
+                width: 100%;
+                max-width: none;
+            }
+        }
+
+        /* Si el dispositivo está en vertical y con ancho pequeño (<=700px), mantener apilado */
+        @media (max-width: 700px) and (orientation: portrait) {
+            .layout { display: block; }
+            .layout .left, .layout .right { width: 100%; }
+            .tablero { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Servidor de Defensa Naval</h1>
+        <p class="subtitle">Sistema FSM - 3 Embarcaciones</p>
+
+        <div class="layout">
+            <div class="left">
+                <div id="conexionStatus" class="conexion-status conectado">
+                    🟢 Conectado - Tiempo Real Activo
+                </div>
+
+                <div class="info-section" id="infoServidor">
+                    <strong>Servidor TCP:</strong> Cargando... | <strong>Web:</strong> puerto 5003
+                </div>
+
+                <div class="barcos-info" id="barcosInfo"></div>
+
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="ataques">0</div>
+                        <div class="stat-label">Ataques Recibidos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="ultimoAtaque">--</div>
+                        <div class="stat-label">Último Ataque</div>
+                    </div>
+                </div>
+
+                <div id="mensaje"></div>
+                
+            </div>
+
+            <div class="right">
+                <div class="tablero" id="tablero"></div>
+
+                <div class="leyenda">
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: #10b981;"></div>
+                        <span>Destroyer (D)</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: #3b82f6;"></div>
+                        <span>Submarine (S)</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: #8b5cf6;"></div>
+                        <span>Battleship (B)</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: #60a5fa;"></div>
+                        <span>Agua</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: #ef4444;"></div>
+                        <span>Impacto</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const filas = ['A', 'B', 'C', 'D', 'E'];
+        const columnas = ['1', '2', '3', '4', '5'];
+        let ultimoAtaqueCoord = null;
+        let eventSource = null;
+        
+        function crearTablero() {
+            const tablero = document.getElementById('tablero');
+            tablero.innerHTML = '';
+            
+            tablero.innerHTML += '<div class="celda-header"></div>';
+            
+            columnas.forEach(col => {
+                tablero.innerHTML += `<div class="celda-header">${col}</div>`;
+            });
+            
+            filas.forEach(fila => {
+                tablero.innerHTML += `<div class="celda-header">${fila}</div>`;
+                columnas.forEach(col => {
+                    const coord = fila + col;
+                    tablero.innerHTML += `<div class="celda" id="${coord}">~</div>`;
+                });
+            });
+        }
+        
+        function actualizarBarcosInfo(barcos) {
+            const container = document.getElementById('barcosInfo');
+            container.innerHTML = '';
+            
+            const orden = ['destroyer', 'submarine', 'battleship'];
+            const iconos = {
+                'destroyer': '🚤',
+                'submarine': '🚢',
+                'battleship': '⚓'
+            };
+            
+            orden.forEach(barcoId => {
+                const barco = barcos[barcoId];
+                const hundido = barco.hundido ? 'hundido' : '';
+                
+                container.innerHTML += `
+                    <div class="barco-card ${barcoId} ${hundido}">
+                        <div class="barco-nombre">${iconos[barcoId]} ${barco.nombre}</div>
+                        <div class="barco-estado">
+                            ${barco.impactos}/${barco.tamaño} impactos
+                            ${barco.hundido ? '<br><strong>💥 HUNDIDO</strong>' : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        function actualizarTablero(tableroData, impactosData, ultimoAtaque) {
+            if (ultimoAtaqueCoord && ultimoAtaqueCoord !== ultimoAtaque) {
+                const prevCelda = document.getElementById(ultimoAtaqueCoord);
+                if (prevCelda) prevCelda.classList.remove('ultimo-ataque');
+            }
+            
+            for (let coord in tableroData) {
+                const celda = document.getElementById(coord);
+                if (!celda) continue;
+                
+                const tipoBarco = tableroData[coord];
+                const impacto = impactosData[coord];
+                
+                celda.classList.remove('destroyer', 'submarine', 'battleship', 'agua-atacada', 'impacto', 'ultimo-ataque');
+                
+                if (impacto === 'X') {
+                    celda.textContent = 'X';
+                    celda.classList.add('impacto');
+                } else if (impacto === 'O') {
+                    celda.textContent = 'O';
+                    celda.classList.add('agua-atacada');
+                } else if (tipoBarco === 'D') {
+                    celda.textContent = 'D';
+                    celda.classList.add('destroyer');
+                } else if (tipoBarco === 'S') {
+                    celda.textContent = 'S';
+                    celda.classList.add('submarine');
+                } else if (tipoBarco === 'B') {
+                    celda.textContent = 'B';
+                    celda.classList.add('battleship');
+                } else {
+                    celda.textContent = '~';
+                }
+                
+                if (coord === ultimoAtaque) {
+                    celda.classList.add('ultimo-ataque');
+                    ultimoAtaqueCoord = coord;
+                }
+            }
+        }
+        
+        function iniciarEventosSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource('/eventos');
+            
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                // Actualizar inmediatamente con los datos del evento
+                actualizarTablero(data.tablero, data.impactos, data.coordenada);
+                actualizarBarcosInfo(data.estado_barcos);
+                document.getElementById('ataques').textContent = data.ataques_totales;
+                document.getElementById('ultimoAtaque').textContent = data.coordenada || '--';
+                
+                if (data.tipo === 'reinicio') {
+                    mostrarMensaje('🔄 Juego reiniciado - Nueva flota desplegada', 'exito');
+                    return;
+                }
+                
+                if (data.tipo === 'ataque') {
+                    const [codigo, mensaje] = data.resultado;
+                    
+                    if (codigo === '500') {
+                        mostrarMensaje(`🏆 ${mensaje}`, 'fin-juego');
+                    } else if (codigo === '200') {
+                        const barcoNombre = mensaje.split(':')[1] || 'Barco';
+                        mostrarMensaje(`💥 ¡${barcoNombre.toUpperCase()} HUNDIDO en ${data.coordenada}! - ACEPTADO`, 'alerta');
+                    } else if (codigo === '202') {
+                        const barcoNombre = mensaje.split(':')[1] || 'Barco';
+                        mostrarMensaje(`🎯 ¡${barcoNombre} IMPACTADO en ${data.coordenada}! - ACEPTADO`, 'info');
+                    } else if (codigo === '404') {
+                        mostrarMensaje(`💧 Ataque fallido en ${data.coordenada} - RECHAZADO`, 'info');
+                    }
+                }
+                
+                document.getElementById('conexionStatus').className = 'conexion-status conectado';
+                document.getElementById('conexionStatus').textContent = '🟢 Conectado - Tiempo Real Activo';
+            };
+            
+            eventSource.onerror = function(error) {
+                console.error('Error en SSE:', error);
+                document.getElementById('conexionStatus').className = 'conexion-status desconectado';
+                document.getElementById('conexionStatus').textContent = '🔴 Desconectado - Intentando reconectar...';
+                
+                setTimeout(() => {
+                    iniciarEventosSSE();
+                }, 2000);
+            };
+        }
+        
+        function actualizarEstado() {
+            fetch('/estado')
+            .then(res => res.json())
+            .then(data => {
+                actualizarTablero(data.tablero, data.impactos, data.ultimo_ataque);
+                actualizarBarcosInfo(data.barcos);
+                document.getElementById('ataques').textContent = data.ataques_totales;
+                document.getElementById('ultimoAtaque').textContent = data.ultimo_ataque || '--';
+            })
+            .catch(err => {
+                console.error('Error al actualizar estado:', err);
+            });
+        }
+        
+        function mostrarMensaje(texto, tipo) {
+            const div = document.getElementById('mensaje');
+            div.textContent = texto;
+            div.className = `mensaje ${tipo}`;
+            
+            const tiempo = tipo === 'fin-juego' ? 0 : 8000;
+            if (tiempo > 0) {
+                setTimeout(() => {
+                    div.textContent = '';
+                    div.className = '';
+                }, tiempo);
+            }
+        }
+        
+        // Inicializar
+        crearTablero();
+        actualizarEstado();
+        iniciarEventosSSE();
+        
+            // Cargar información del servidor (IP y puerto TCP)
+            function cargarInfoServidor() {
+                fetch('/info-servidor')
+                .then(res => res.json())
+                .then(data => {
+                    const infoDiv = document.getElementById('infoServidor');
+                    infoDiv.innerHTML = `<strong>Servidor TCP:</strong> ${data.ip}:${data.puerto} | <strong>Host:</strong> ${data.host} | <strong>Web:</strong> puerto 5003`;
+                })
+                .catch(err => {
+                    console.error('Error al cargar info del servidor:', err);
+                    document.getElementById('infoServidor').innerHTML = `<strong>Servidor TCP:</strong> 0.0.0.0:5001 | <strong>Web:</strong> puerto 5003`;
+                });
+            }
+        
+            cargarInfoServidor();
+    </script>
+</body>
+</html>

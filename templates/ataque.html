@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliente de Ataque - FSM Naval Battle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        :root {
+            --cell-size: 64px; /* tamaño por defecto de cada celda */
+            --tab-gap: 10px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .config-section {
+            background: #f7f7f7;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .tablero {
+            display: grid;
+            /* primera columna para cabeceras de fila (letras), luego 5 celdas de tamaño fijo */
+            grid-template-columns: 30px repeat(5, var(--cell-size));
+            gap: var(--tab-gap);
+            margin: 20px 0;
+            justify-content: center; /* centra el tablero dentro de su contenedor */
+        }
+        
+        .celda-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .celda {
+            aspect-ratio: 1;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 20px;
+            background: white;
+            font-weight: bold;
+            position: relative;
+        }
+        
+        .celda:hover:not(.atacado) {
+            background: #e0e7ff;
+            transform: scale(1.05);
+        }
+        
+        .celda.agua {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .celda.impacto, .celda.hundido {
+            background: #ef4444;
+            color: white;
+        }
+        
+        @keyframes explosion {
+            0% { 
+                transform: scale(1); 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% { 
+                transform: scale(1.3); 
+                box-shadow: 0 0 20px 10px rgba(239, 68, 68, 0.5);
+            }
+            100% { 
+                transform: scale(1); 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+        
+        .celda.atacado {
+            cursor: not-allowed;
+        }
+        
+        .celda-info {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 10px;
+            opacity: 0.8;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: #f7f7f7;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .mensaje {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .mensaje.exito {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .mensaje.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .mensaje.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .mensaje.victoria {
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 16px;
+            padding: 20px;
+        }
+        
+        .acciones {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .estado-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .estado-inicio { background: #e0e7ff; color: #3730a3; }
+        .estado-atacando { background: #fef3c7; color: #92400e; }
+        .estado-victoria { background: #dcfce7; color: #166534; }
+        
+        .leyenda {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            font-size: 11px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .leyenda-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .leyenda-cuadro {
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+            border: 2px solid #ddd;
+        }
+
+        /* Layout responsivo: texto a la izquierda, matriz a la derecha en pantallas grandes */
+        .layout {
+            display: block; /* por defecto apilado (móvil) */
+        }
+
+        .layout .left,
+        .layout .right {
+            width: 100%;
+        }
+
+        .layout .left {
+            text-align: left;
+            padding-right: 0;
+        }
+
+        .layout .right {
+            display: block;
+            margin-top: 16px;
+        }
+
+        /* A partir de 700px en adelante mostramos las dos columnas lado a lado */
+        @media (min-width: 700px) {
+            /* Aumentar tamaño de celdas en pantallas grandes */
+            :root {
+                --cell-size: 96px;
+                --tab-gap: 14px;
+            }
+            .layout {
+                display: flex;
+                gap: 24px;
+                align-items: center;
+            }
+
+            .layout .left{
+                width: 40%;
+            }
+            .layout .right {
+                width: 60%;
+            }
+
+            .layout .right {
+                display: flex;
+                flex-direction: column;
+                align-items: center; /* centra la matriz en la columna derecha */
+            }
+
+            /* En pantallas grandes dejamos que el tablero crezca y se centre en la columna derecha */
+            .tablero {
+                width: 100%;
+                max-width: none;
+            }
+        }
+
+        /* Si el dispositivo está en vertical y con ancho pequeño (<=700px), mantener apilado */
+        @media (max-width: 700px) and (orientation: portrait) {
+            .layout { display: block; }
+            .layout .left, .layout .right { width: 100%; }
+            .tablero { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚔️ Cliente de Ataque Naval</h1>
+        <p class="subtitle">Máquina de Estados Finitos</p>
+        
+        <div class="layout">
+            <div class="left">
+                <div class="config-section">
+                    <div class="input-group">
+                        <label>IP del Servidor:</label>
+                        <input type="text" id="host" value="localhost" placeholder="localhost">
+                    </div>
+                    <div class="input-group">
+                        <label>Puerto del Servidor:</label>
+                        <input type="number" id="port" value="5001" placeholder="5001">
+                    </div>
+                    <button onclick="configurar()">Configurar Conexión</button>
+                </div>
+                
+                <div style="text-align: center;">
+                    <span id="estadoBadge" class="estado-badge estado-inicio">Estado: Inicio (q0)</span>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="ataques">0</div>
+                        <div class="stat-label">Ataques</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="impactos">0</div>
+                        <div class="stat-label">Impactos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="fallos">0</div>
+                        <div class="stat-label">Fallos</div>
+                    </div>
+                </div>
+
+                <div id="mensaje"></div>
+                
+            </div>
+
+            <div class="right">
+                <div class="tablero" id="tablero"></div>
+                
+                <div class="leyenda">
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: #ef4444;"></div>
+                        <span>Impacto (X)</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: #60a5fa;"></div>
+                        <span>Agua (O)</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const filas = ['A', 'B', 'C', 'D', 'E'];
+        const columnas = ['1', '2', '3', '4', '5'];
+        
+        // Registro de ataques con información detallada
+        const registroAtaques = {};
+        let juegoTerminado = false;
+        
+        function crearTablero() {
+            const tablero = document.getElementById('tablero');
+            tablero.innerHTML = '';
+            
+            tablero.innerHTML += '<div class="celda-header"></div>';
+            
+            columnas.forEach(col => {
+                tablero.innerHTML += `<div class="celda-header">${col}</div>`;
+            });
+            
+            filas.forEach(fila => {
+                tablero.innerHTML += `<div class="celda-header">${fila}</div>`;
+                columnas.forEach(col => {
+                    const coord = fila + col;
+                    tablero.innerHTML += `
+                        <div class="celda" id="${coord}" onclick="atacar('${coord}')">
+                            ~
+                        </div>
+                    `;
+                });
+            });
+        }
+        
+        function configurar() {
+            const host = document.getElementById('host').value;
+            const port = document.getElementById('port').value;
+            
+            fetch('/configurar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ host, port })
+            })
+            .then(res => res.json())
+            .then(data => {
+                mostrarMensaje(`Conectado a ${data.host}:${data.port}`, 'exito');
+            })
+            .catch(err => {
+                mostrarMensaje('Error al configurar conexión', 'error');
+            });
+        }
+        
+        function atacar(coordenada) {
+            const celda = document.getElementById(coordenada);
+            if (celda.classList.contains('atacado') || juegoTerminado) return;
+            
+            fetch('/atacar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ coordenada })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.respuesta) {
+                    // Dividir solo por el primer ":"
+                    const primerDosPuntos = data.respuesta.indexOf(':');
+                    const codigo = data.respuesta.substring(0, primerDosPuntos);
+                    const mensajeCompleto = data.respuesta.substring(primerDosPuntos + 1);
+                    
+                    // Registrar el ataque con información
+                    if (codigo === '500') {
+                        juegoTerminado = true;
+                        registroAtaques[coordenada] = {
+                            tipo: 'hundido',
+                            barco: 'FIN',
+                            codigo: codigo
+                        };
+                        mostrarMensaje(`🏆 ${mensajeCompleto}`, 'victoria');
+                    } else if (codigo === '200') {
+                        // Mensaje viene como "hundido:NombreBarco"
+                        const partes = mensajeCompleto.split(':');
+                        const barco = partes[1] || 'Barco';
+                        
+                        registroAtaques[coordenada] = {
+                            tipo: 'hundido',
+                            barco: barco,
+                            codigo: codigo
+                        };
+                        mostrarMensaje(`💥 ¡${barco.toUpperCase()} HUNDIDO!`, 'exito');
+                    } else if (codigo === '202') {
+                        // Mensaje viene como "impactado:NombreBarco"
+                        const partes = mensajeCompleto.split(':');
+                        const barco = partes[1] || 'Barco';
+                        
+                        registroAtaques[coordenada] = {
+                            tipo: 'impactado',
+                            barco: barco,
+                            codigo: codigo
+                        };
+                        mostrarMensaje(`🎯 ¡${barco.toUpperCase()} IMPACTADO!`, 'exito');
+                    } else if (codigo === '404') {
+                        registroAtaques[coordenada] = {
+                            tipo: 'agua',
+                            barco: null,
+                            codigo: codigo
+                        };
+                        mostrarMensaje(`💧 Fallido: ${mensajeCompleto}`, 'info');
+                    } else {
+                        mostrarMensaje(mensajeCompleto, 'error');
+                    }
+                    
+                    actualizarTableroConRegistro();
+                    actualizarEstadisticas(data);
+                    actualizarEstadoBadge(data.estado);
+                }
+            })
+            .catch(err => {
+                mostrarMensaje('Error al enviar ataque', 'error');
+            });
+        }
+        
+        function actualizarTableroConRegistro() {
+            let impactos = 0;
+            let fallos = 0;
+            
+            for (let coord in registroAtaques) {
+                const celda = document.getElementById(coord);
+                const info = registroAtaques[coord];
+                
+                celda.classList.remove('agua', 'impacto', 'hundido');
+                celda.classList.add('atacado');
+                celda.innerHTML = ''; // Limpiar contenido previo
+                
+                if (info.tipo === 'hundido') {
+                    celda.textContent = 'X';
+                    celda.classList.add('hundido');
+                    
+                    if (info.barco && info.barco !== 'FIN') {
+                        const etiqueta = document.createElement('span');
+                        etiqueta.className = 'celda-info';
+                        etiqueta.textContent = info.barco[0];
+                        celda.appendChild(etiqueta);
+                    }
+                    
+                    impactos++;
+                } else if (info.tipo === 'impactado') {
+                    const textoX = document.createTextNode('X');
+                    celda.appendChild(textoX);
+     
+                    const barcoLower = info.barco.toLowerCase();
+                    celda.classList.add('impacto');
+                    
+                    const etiqueta = document.createElement('span');
+                    etiqueta.className = 'celda-info';
+                    etiqueta.textContent = info.barco[0];
+                    celda.appendChild(etiqueta);
+                    
+                    impactos++;
+                } else if (info.tipo === 'agua') {
+                    celda.textContent = 'O';
+                    celda.classList.add('agua');
+                    fallos++;
+                }
+            }
+            
+            document.getElementById('impactos').textContent = impactos;
+            document.getElementById('fallos').textContent = fallos;
+        }
+        
+        function actualizarEstadisticas(data) {
+            document.getElementById('ataques').textContent = data.ataques;
+        }
+        
+        function actualizarEstadoBadge(estado) {
+            const badge = document.getElementById('estadoBadge');
+            badge.className = 'estado-badge';
+            
+            if (estado === 'q0') {
+                badge.textContent = 'Estado: Inicio (q0)';
+                badge.classList.add('estado-inicio');
+            } else if (estado === 'q1') {
+                badge.textContent = 'Estado: Atacando (q1)';
+                badge.classList.add('estado-atacando');
+            } else if (estado === 'q2') {
+                badge.textContent = 'Estado: Victoria (q2)';
+                badge.classList.add('estado-victoria');
+            }
+        }
+        
+        function mostrarMensaje(texto, tipo) {
+            const div = document.getElementById('mensaje');
+            div.textContent = texto;
+            div.className = `mensaje ${tipo}`;
+            
+            const tiempo = tipo === 'victoria' ? 3000 : 8000;
+            if (tiempo > 0) {
+                setTimeout(() => {
+                    div.textContent = '';
+                    div.className = '';
+                }, tiempo);
+            }
+        }
+        
+        // Inicializar
+        crearTablero();
+    </script>
+</body>
+</html>
