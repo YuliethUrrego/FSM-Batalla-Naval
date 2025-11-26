@@ -1,0 +1,109 @@
+# Entorno Virtual
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Directorios de caché y compilación
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Flask
+instance/
+.webassets-cache
+
+# IDE y Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
+.settings/
+*.iml
+
+# Sistema operativo
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Logs
+*.log
+logs/
+*.pot
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Bases de datos (si se agregan)
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
+
+# Archivos temporales
+*.tmp
+*.temp
+.tmp/
+temp/
+
+# Archivos de configuración local
+config.local.py
+.env.local
+.env.*.local
+
+# Archivos de debug
+debug.log
+pdb.log
+
+# Carpetas de resultados/exportes
+results/
+exports/
+output/
+
+# Node modules (por si se usan herramientas frontend)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Archivos de bloqueo (lock files)
+package-lock.json
+yarn.lock
+Pipfile.lock
