@@ -20,6 +20,7 @@ Transiciones:
 - Barco hundido (200): q1 → q1
 - Toda la flota destruida (500): q1 → q2 ✓
 ```
+<img width="1911" height="943" alt="image" src="https://github.com/user-attachments/assets/852e8c96-f64f-4314-a583-2d43164039a6" />
 
 #### **Cliente (Ataque)**
 ```
@@ -30,6 +31,7 @@ Transiciones:
 - Ataque aceptado: q1 → q1
 - Flota enemiga hundida: q1 → q2 ✓
 ```
+<img width="1907" height="942" alt="image" src="https://github.com/user-attachments/assets/d1cd27cd-153e-4399-a6f1-1e851f5f2eca" />
 
 ##  Arquitectura del Sistema
 
